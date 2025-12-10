@@ -81,7 +81,7 @@ public class Main extends Application {
         cusModel.databaseRW = databaseRW;
         cusView.start(new Stage());
 
-        //Uncommented the following 3 lines for the StockShortage feature
+        //Uncommented the following 3 lines for the StockShortage feature.
         RemoveProductNotifier removeProductNotifier = new RemoveProductNotifier();
         removeProductNotifier.cusView = cusView;
         cusModel.removeProductNotifier = removeProductNotifier;

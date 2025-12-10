@@ -68,12 +68,7 @@ public class CustomerModel {
             String description = theProduct.getProductDescription();
             int stock = theProduct.getStockQuantity();
 
-            String baseInfo = String.format(
-                    "Product_Id: %s\n%s,\nPrice: £%.2f",
-                    theProduct.getProductId(),
-                    description,
-                    unitPrice
-            );
+            String baseInfo = String.format("Product_Id: %s\n%s,\nPrice: £%.2f", theProduct.getProductId(), description, unitPrice);
             String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
             displayLaSearchResult = baseInfo + quantityInfo;
 
@@ -98,12 +93,7 @@ public class CustomerModel {
             String description = theProduct.getProductDescription();
             int stock = theProduct.getStockQuantity();
 
-            String baseInfo = String.format(
-                    "Product_Id: %s\n%s,\nPrice: £%.2f",
-                    theProduct.getProductId(),
-                    description,
-                    unitPrice
-            );
+            String baseInfo = String.format("Product_Id: %s\n%s,\nPrice: £%.2f", theProduct.getProductId(), description, unitPrice);
             String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
             displayLaSearchResult = baseInfo + quantityInfo;
 
@@ -118,10 +108,8 @@ public class CustomerModel {
 
             cusView.updateSearchResults(new ArrayList<>());
         }
-
         updateView();
     }
-
 
     void addToTrolley(){
         if(theProduct!= null){
@@ -155,12 +143,7 @@ public class CustomerModel {
         }
 
         // First time a product goes into the trolley
-        Product pNew = new Product(
-                theProduct.getProductId(),
-                theProduct.getProductDescription(),
-                theProduct.getProductImageName(),
-                theProduct.getUnitPrice(),
-                theProduct.getStockQuantity()
+        Product pNew = new Product(theProduct.getProductId(), theProduct.getProductDescription(), theProduct.getProductImageName(), theProduct.getUnitPrice(), theProduct.getStockQuantity()
         );
         pNew.setOrderedQuantity(1); // start counting the product quantity from 1
         trolley.add(pNew);
