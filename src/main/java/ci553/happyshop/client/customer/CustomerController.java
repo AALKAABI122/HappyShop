@@ -1,5 +1,7 @@
 package ci553.happyshop.client.customer;
 
+import ci553.happyshop.catalogue.Product;
+
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -23,6 +25,16 @@ public class CustomerController {
             case "OK & Close":
                 cusModel.closeReceipt();
                 break;
+        }
+    }
+    /**
+     * Called when the user selects a product from the search ListView in CustomerView.
+     * This sets the current product in the model and refreshes the preview.
+     */
+    public void setSelectedProduct(Product product) {
+        if (product != null && cusModel != null) {
+            cusModel.setTheProduct(product);
+            cusModel.updateView();  // refresh image + label for selected product
         }
     }
 

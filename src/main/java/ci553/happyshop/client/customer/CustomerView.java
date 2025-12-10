@@ -1,10 +1,15 @@
 package ci553.happyshop.client.customer;
 
+import ci553.happyshop.utility.StorageLocation;
 import ci553.happyshop.utility.UIStyle;
 import ci553.happyshop.utility.WinPosManager;
 import ci553.happyshop.utility.WindowBounds;
+import ci553.happyshop.catalogue.Product;
 import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.scene.control.ListView;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -16,7 +21,10 @@ import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.util.ArrayList;
 
 /**
  * The CustomerView is separated into two sections by a line :
@@ -45,6 +53,11 @@ public class CustomerView  {
     private Label lbProductInfo;//product text info in searchPage
     private TextArea taTrolley; //in trolley Page
     private TextArea taReceipt;//in receipt page
+
+    // NEW: summary + observable list + listview (like Warehouse)
+    private Label laSearchSummary;
+    private ObservableList<Product> obProductList;
+    private ListView<Product> lvProducts;
 
     // Holds a reference to this CustomerView window for future access and management
     // (e.g., positioning the removeProductNotifier when needed).
@@ -79,49 +92,125 @@ public class CustomerView  {
         Label laPageTitle = new Label("Search by Product ID/Name");
         laPageTitle.setStyle(UIStyle.labelTitleStyle);
 
-        Label laId = new Label("ID:      ");
+        // Unified ID/Name field
+        Label laId = new Label("ID / Name:");
         laId.setStyle(UIStyle.labelStyle);
+        laId.setMinWidth(80);
+
         tfId = new TextField();
-        tfId.setPromptText("eg. 0001");
+        tfId.setPromptText("e.g. 0001 or USB");
         tfId.setStyle(UIStyle.textFiledStyle);
-        HBox hbId = new HBox(10, laId, tfId);
+        tfId.setPrefWidth(180);
+        // Pressing Enter = Search
+        tfId.setOnAction(this::buttonClicked);
 
-        Label laName = new Label("Name:");
-        laName.setStyle(UIStyle.labelStyle);
-        tfName = new TextField();
-        tfName.setPromptText("implement it if you want");
-        tfName.setStyle(UIStyle.textFiledStyle);
-        HBox hbName = new HBox(10, laName, tfName);
-
-        Label laPlaceHolder = new Label(  " ".repeat(15)); //create left-side spacing so that this HBox aligns with others in the layout.
         Button btnSearch = new Button("Search");
         btnSearch.setStyle(UIStyle.buttonStyle);
+        btnSearch.setMinWidth(70);
         btnSearch.setOnAction(this::buttonClicked);
+
         Button btnAddToTrolley = new Button("Add to Trolley");
         btnAddToTrolley.setStyle(UIStyle.buttonStyle);
+        btnAddToTrolley.setMinWidth(110);
         btnAddToTrolley.setOnAction(this::buttonClicked);
-        HBox hbBtns = new HBox(10, laPlaceHolder,btnSearch, btnAddToTrolley);
 
+        // Line 1: label + text field
+        HBox hbIdLine = new HBox(10, laId, tfId);
+        hbIdLine.setAlignment(Pos.CENTER_LEFT);
+
+        // Line 2: buttons under the field
+        HBox hbButtons = new HBox(10, btnSearch, btnAddToTrolley);
+        hbButtons.setAlignment(Pos.CENTER_LEFT);
+
+
+        // Summary label: "6 products found"
+        laSearchSummary = new Label("No search yet");
+        laSearchSummary.setStyle(UIStyle.labelStyle);
+
+        // Observable list + ListView of products (similar to WarehouseView)
+        obProductList = FXCollections.observableArrayList();
+        lvProducts = new ListView<>(obProductList);
+        lvProducts.setPrefHeight(200);
+        lvProducts.setFixedCellSize(50);
+        lvProducts.setStyle(UIStyle.listViewStyle);
+
+        // Custom cell: image + text (reusing Warehouse idea)
+        lvProducts.setCellFactory(param -> new ListCell<Product>() {
+            @Override
+            protected void updateItem(Product product, boolean empty) {
+                super.updateItem(product, empty);
+
+                if (empty || product == null) {
+                    setGraphic(null);
+                } else {
+                    String imageName = product.getProductImageName(); // e.g. "0001.jpg"
+                    String relativeImageUrl = StorageLocation.imageFolder + imageName;
+                    Path imageFullPath = Paths.get(relativeImageUrl).toAbsolutePath();
+                    String imageFullUri = imageFullPath.toUri().toString();
+
+                    ImageView ivPro;
+                    try {
+                        ivPro = new ImageView(new Image(imageFullUri, 50, 45, true, true));
+                    } catch (Exception e) {
+                        ivPro = new ImageView(new Image("imageHolder.jpg", 50, 45, true, true));
+                    }
+
+                    Label laProToString = new Label(product.toString());
+                    HBox hbox = new HBox(10, ivPro, laProToString);
+                    setGraphic(hbox);
+                }
+            }
+        });
+
+        // When user selects a product in the list, tell controller/model
+        lvProducts.getSelectionModel().selectedItemProperty().addListener((obs, oldP, newP) -> {
+            if (newP != null && cusController != null) {
+                cusController.setSelectedProduct(newP);  // we'll add this method
+            }
+        });
+
+        // Small preview area (reuse your existing ivProduct + lbProductInfo)
         ivProduct = new ImageView("imageHolder.jpg");
         ivProduct.setFitHeight(60);
         ivProduct.setFitWidth(60);
-        ivProduct.setPreserveRatio(true); // Image keeps its original shape and fits inside 60×60
-        ivProduct.setSmooth(true); //make it smooth and nice-looking
+        ivProduct.setPreserveRatio(true);
+        ivProduct.setSmooth(true);
 
         lbProductInfo = new Label("Thank you for shopping with us.");
         lbProductInfo.setWrapText(true);
-        lbProductInfo.setMinHeight(Label.USE_PREF_SIZE);  // Allow auto-resize
+        lbProductInfo.setMinHeight(Label.USE_PREF_SIZE);
         lbProductInfo.setStyle(UIStyle.labelMulLineStyle);
         HBox hbSearchResult = new HBox(5, ivProduct, lbProductInfo);
         hbSearchResult.setAlignment(Pos.CENTER_LEFT);
 
-        VBox vbSearchPage = new VBox(15, laPageTitle, hbId, hbName, hbBtns, hbSearchResult);
+        VBox vbSearchPage = new VBox(15,
+                laPageTitle,
+                hbIdLine,
+                hbButtons,
+                laSearchSummary,
+                lvProducts,
+                hbSearchResult
+        );
         vbSearchPage.setPrefWidth(COLUMN_WIDTH);
         vbSearchPage.setAlignment(Pos.TOP_CENTER);
         vbSearchPage.setStyle("-fx-padding: 15px;");
 
         return vbSearchPage;
     }
+
+
+    void updateSearchResults(ArrayList<Product> products) {
+        if (products == null || products.isEmpty()) {
+            laSearchSummary.setText("0 products found");
+            obProductList.clear();
+        } else {
+            laSearchSummary.setText(products.size() + " products found");
+            obProductList.setAll(products);
+            // Auto-select the first product – this will also update the model via setSelectedProduct
+            lvProducts.getSelectionModel().selectFirst();
+        }
+    }
+
 
     private VBox CreateTrolleyPage() {
         Label laPageTitle = new Label("🛒🛒  Trolley 🛒🛒");
@@ -173,14 +262,25 @@ public class CustomerView  {
 
     private void buttonClicked(ActionEvent event) {
         try{
-            Button btn = (Button)event.getSource();
-            String action = btn.getText();
-            if(action.equals("Add to Trolley")){
-                showTrolleyOrReceiptPage(vbTrolleyPage); //ensure trolleyPage shows if the last customer did not close their receiptPage
+
+            Object src = event.getSource();
+            String action;
+
+            if (src instanceof Button btn) {
+                action = btn.getText();
+                if(action.equals("Add to Trolley")){
+                    showTrolleyOrReceiptPage(vbTrolleyPage); //ensure trolleyPage shows if the last customer did not close their receiptPage
+                }
+                if(action.equals("OK & Close")){
+                    showTrolleyOrReceiptPage(vbTrolleyPage);
+                }
+            } else if (src instanceof TextField) {
+                // Enter in search field
+                action = "Search";
+            } else {
+                return;
             }
-            if(action.equals("OK & Close")){
-                showTrolleyOrReceiptPage(vbTrolleyPage);
-            }
+
             cusController.doAction(action);
         }
         catch(SQLException e){

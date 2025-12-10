@@ -28,39 +28,100 @@ public class CustomerModel {
     private Product theProduct =null; // product found from search
     private ArrayList<Product> trolley =  new ArrayList<>(); // a list of products in trolley
 
-    // Four UI elements to be passed to CustomerView for display updates.
+    // Five UI elements to be passed to CustomerView for display updates.
     private String imageName = "imageHolder.jpg";                // Image to show in product preview (Search Page)
     private String displayLaSearchResult = "No Product was searched yet"; // Label showing search result message (Search Page)
     private String displayTaTrolley = "";                                // Text area content showing current trolley items (Trolley Page)
     private String displayTaReceipt = "";                                // Text area content showing receipt after checkout (Receipt Page)
+    public RemoveProductNotifier removeProductNotifier;                  // Updated notifier when stock is shortage
 
     //SELECT productID, description, image, unitPrice,inStock quantity
     void search() throws SQLException {
-        String productId = cusView.tfId.getText().trim();
-        if(!productId.isEmpty()){
-            theProduct = databaseRW.searchByProductId(productId); //search database
-            if(theProduct != null && theProduct.getStockQuantity()>0){
-                double unitPrice = theProduct.getUnitPrice();
-                String description = theProduct.getProductDescription();
-                int stock = theProduct.getStockQuantity();
-
-                String baseInfo = String.format("Product_Id: %s\n%s,\nPrice: £%.2f", productId, description, unitPrice);
-                String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
-                displayLaSearchResult = baseInfo + quantityInfo;
-                System.out.println(displayLaSearchResult);
-            }
-            else{
-                theProduct=null;
-                displayLaSearchResult = "No Product was found with ID " + productId;
-                System.out.println("No Product was found with ID " + productId);
-            }
-        }else{
-            theProduct=null;
-            displayLaSearchResult = "Please type ProductID";
-            System.out.println("Please type ProductID.");
+        // User can type either a Product ID or a Name into the ID field
+        String input = cusView.tfId.getText().trim();
+        searchWithInput(input);
+    }
+    // Helper used by both GUI and unit tests
+    void searchWithInput(String input) throws SQLException {
+        if (input == null) {
+            input = "";
         }
+
+        if (input.isEmpty()) {
+            theProduct = null;
+            displayLaSearchResult = "Please type ProductID or Name";
+            System.out.println("Please type ProductID or Name.");
+
+            // clear search results list
+            cusView.updateSearchResults(new ArrayList<>());
+            updateView();
+            return;
+        }
+
+        // 1) Try search by Product ID first (original behaviour)
+        Product foundById = databaseRW.searchByProductId(input);
+
+        if (foundById != null && foundById.getStockQuantity() > 0) {
+            theProduct = foundById;
+
+            double unitPrice = theProduct.getUnitPrice();
+            String description = theProduct.getProductDescription();
+            int stock = theProduct.getStockQuantity();
+
+            String baseInfo = String.format(
+                    "Product_Id: %s\n%s,\nPrice: £%.2f",
+                    theProduct.getProductId(),
+                    description,
+                    unitPrice
+            );
+            String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
+            displayLaSearchResult = baseInfo + quantityInfo;
+
+            // list contains just this product
+            ArrayList<Product> singleList = new ArrayList<>();
+            singleList.add(foundById);
+            cusView.updateSearchResults(singleList);
+
+            System.out.println(displayLaSearchResult);
+            updateView();
+            return;
+        }
+
+        // 2) If not found by ID (or out of stock), try search by Name/Keyword
+        ArrayList<Product> resultList = databaseRW.searchProduct(input);
+
+        if (resultList != null && !resultList.isEmpty()) {
+            // Use the first product as the selected one
+            theProduct = resultList.get(0);
+
+            double unitPrice = theProduct.getUnitPrice();
+            String description = theProduct.getProductDescription();
+            int stock = theProduct.getStockQuantity();
+
+            String baseInfo = String.format(
+                    "Product_Id: %s\n%s,\nPrice: £%.2f",
+                    theProduct.getProductId(),
+                    description,
+                    unitPrice
+            );
+            String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
+            displayLaSearchResult = baseInfo + quantityInfo;
+
+            // Update the list like WarehouseView
+            cusView.updateSearchResults(resultList);
+
+            System.out.println(displayLaSearchResult);
+        } else {
+            theProduct = null;
+            displayLaSearchResult = "No Product was found with ID or Name \"" + input + "\"";
+            System.out.println(displayLaSearchResult);
+
+            cusView.updateSearchResults(new ArrayList<>());
+        }
+
         updateView();
     }
+
 
     void addToTrolley(){
         if(theProduct!= null){
@@ -70,7 +131,8 @@ public class CustomerModel {
             //TODO
             // 1. Merges items with the same product ID (combining their quantities).
             // 2. Sorts the products in the trolley by product ID.
-            trolley.add(theProduct);
+            //trolley.add(theProduct);
+            makeOrganizedTrolley();
             displayTaTrolley = ProductListFormatter.buildString(trolley); //build a String for trolley so that we can show it
         }
         else{
@@ -81,6 +143,33 @@ public class CustomerModel {
         updateView();
     }
 
+    void makeOrganizedTrolley() {
+        for (Product p : trolley) {
+            if (p.getProductId().equals(theProduct.getProductId())) {
+                // Each time the same product is added, increase ordered quantity by 1
+                p.setOrderedQuantity(p.getOrderedQuantity() + 1);
+                // start sorting the products according to their Product id
+                trolley.sort((p1, p2) -> p1.getProductId().compareTo(p2.getProductId()));
+                return;
+            }
+        }
+
+        // First time a product goes into the trolley
+        Product pNew = new Product(
+                theProduct.getProductId(),
+                theProduct.getProductDescription(),
+                theProduct.getProductImageName(),
+                theProduct.getUnitPrice(),
+                theProduct.getStockQuantity()
+        );
+        pNew.setOrderedQuantity(1); // start counting the product quantity from 1
+        trolley.add(pNew);
+
+        // Keep trolley sorted by product ID
+        trolley.sort((p1, p2) -> p1.getProductId().compareTo(p2.getProductId()));
+    }
+
+
     void checkOut() throws IOException, SQLException {
         if(!trolley.isEmpty()){
             // Group the products in the trolley by productId to optimize stock checking
@@ -88,8 +177,11 @@ public class CustomerModel {
             // If any products are insufficient, the update will be rolled back.
             // If all products are sufficient, the database will be updated, and insufficientProducts will be empty.
             // Note: If the trolley is already organized (merged and sorted), grouping is unnecessary.
-            ArrayList<Product> groupedTrolley= groupProductsById(trolley);
-            ArrayList<Product> insufficientProducts= databaseRW.purchaseStocks(groupedTrolley);
+
+            //ArrayList<Product> groupedTrolley= groupProductsById(trolley);
+            // Trolley is already organized (one product per ID with correct orderedQuantity)
+            ArrayList<Product> insufficientProducts = databaseRW.purchaseStocks(trolley);
+
 
             if(insufficientProducts.isEmpty()){ // If stock is sufficient for all products
                 //get OrderHub and tell it to make a new Order
@@ -97,6 +189,11 @@ public class CustomerModel {
                 Order theOrder = orderHub.newOrder(trolley);
                 trolley.clear();
                 displayTaTrolley ="";
+
+                //if a previous error window is still open, it closes when checkout finally succeeds.
+                if (removeProductNotifier != null) {
+                    removeProductNotifier.closeNotifierWindow();
+                }
                 displayTaReceipt = String.format(
                         "Order_ID: %s\nOrdered_Date_Time: %s\n%s",
                         theOrder.getOrderId(),
@@ -115,13 +212,26 @@ public class CustomerModel {
                 }
                 theProduct=null;
 
-                //TODO
-                // Add the following logic here:
-                // 1. Remove products with insufficient stock from the trolley.
-                // 2. Trigger a message window to notify the customer about the insufficient stock, rather than directly changing displayLaSearchResult.
-                //You can use the provided RemoveProductNotifier class and its showRemovalMsg method for this purpose.
-                //remember close the message window where appropriate (using method closeNotifierWindow() of RemoveProductNotifier class)
-                displayLaSearchResult = "Checkout failed due to insufficient stock for the following products:\n" + errorMsg.toString();
+                // 1. Remove products with insufficient stock from the trolley
+                for (Product insufficient : insufficientProducts) {
+                    trolley.removeIf(p -> p.getProductId().equals(insufficient.getProductId()));
+                }
+
+                // Update trolley text after removal
+                displayTaTrolley = ProductListFormatter.buildString(trolley);
+
+                // 2. Show message window instead of just changing the label
+                String fullMsg =
+                        "Checkout failed due to insufficient stock for the following products:\n"
+                                + errorMsg.toString();
+
+                if (removeProductNotifier != null) {
+                    removeProductNotifier.showRemovalMsg(fullMsg);
+                } else {
+                    // Fallback if notifier is not wired (e.g. in testing)
+                    displayLaSearchResult = fullMsg;
+                }
+
                 System.out.println("stock is not enough");
             }
         }
@@ -155,6 +265,11 @@ public class CustomerModel {
     void cancel(){
         trolley.clear();
         displayTaTrolley="";
+
+        //closes any old “insufficient stock” window.
+        if (removeProductNotifier != null) {
+            removeProductNotifier.closeNotifierWindow();
+        }
         updateView();
     }
     void closeReceipt(){
@@ -182,5 +297,8 @@ public class CustomerModel {
     //for test only
     public ArrayList<Product> getTrolley() {
         return trolley;
+    }
+    public void setTheProduct(Product theProduct) {
+        this.theProduct = theProduct;
     }
 }
