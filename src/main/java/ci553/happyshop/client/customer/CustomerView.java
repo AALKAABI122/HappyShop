@@ -28,7 +28,7 @@ import java.util.ArrayList;
 
 /**
  * The CustomerView is separated into two sections by a line :
- *
+
  * 1. Search Page – Always visible, allowing customers to browse and search for products.
  * 2. the second page – display either the Trolley Page or the Receipt Page
  *    depending on the current context. Only one of these is shown at a time.
@@ -45,16 +45,16 @@ public class CustomerView  {
     private VBox vbTrolleyPage;  //vbTrolleyPage and vbReceiptPage will swap with each other when need
     private VBox vbReceiptPage;
 
-    TextField tfId; //for user input on the search page. Made accessible so it can be accessed or modified by CustomerModel
-    TextField tfName; //for user input on the search page. Made accessible so it can be accessed by CustomerModel
+    TextField tfId; //for user input on the search page. Made accessible so it can be accessed or modified by CustomerModel.
+    TextField tfName; //for user input on the search page. Made accessible so it can be accessed by CustomerModel.
 
     //four controllers needs updating when program going on
-    private ImageView ivProduct; //image area in searchPage
-    private Label lbProductInfo;//product text info in searchPage
+    private ImageView ivProduct; //image area in searchPage.
+    private Label lbProductInfo;//product text info in searchPage.
     private TextArea taTrolley; //in trolley Page
     private TextArea taReceipt;//in receipt page
 
-    // NEW: summary + observable list + listview (like Warehouse)
+    // NEW: summary + observable list + listview (like Warehouse).
     private Label laSearchSummary;
     private ObservableList<Product> obProductList;
     private ListView<Product> lvProducts;
@@ -92,7 +92,7 @@ public class CustomerView  {
         Label laPageTitle = new Label("Search by Product ID/Name");
         laPageTitle.setStyle(UIStyle.labelTitleStyle);
 
-        // Unified ID/Name field
+        // Unified ID/Name field.
         Label laId = new Label("ID / Name:");
         laId.setStyle(UIStyle.labelStyle);
         laId.setMinWidth(80);
@@ -114,11 +114,11 @@ public class CustomerView  {
         btnAddToTrolley.setMinWidth(110);
         btnAddToTrolley.setOnAction(this::buttonClicked);
 
-        // Line 1: label + text field
+        // Line 1: label + text field.
         HBox hbIdLine = new HBox(10, laId, tfId);
         hbIdLine.setAlignment(Pos.CENTER_LEFT);
 
-        // Line 2: buttons under the field
+        // Line 2: buttons under the field.
         HBox hbButtons = new HBox(10, btnSearch, btnAddToTrolley);
         hbButtons.setAlignment(Pos.CENTER_LEFT);
 
@@ -206,7 +206,7 @@ public class CustomerView  {
         } else {
             laSearchSummary.setText(products.size() + " products found");
             obProductList.setAll(products);
-            // Auto-select the first product – this will also update the model via setSelectedProduct
+            // Auto-select the first product – this will also update the model via setSelectedProduct.
             lvProducts.getSelectionModel().selectFirst();
         }
     }

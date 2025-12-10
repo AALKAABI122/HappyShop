@@ -37,7 +37,7 @@ public class CustomerModel {
 
     //SELECT productID, description, image, unitPrice,inStock quantity
     void search() throws SQLException {
-        // User can type either a Product ID or a Name into the ID field
+        // User can type either a Product ID or a Name into the ID field.
         String input = cusView.tfId.getText().trim();
         searchWithInput(input);
     }

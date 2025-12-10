@@ -34,7 +34,7 @@ public class CustomerController {
     public void setSelectedProduct(Product product) {
         if (product != null && cusModel != null) {
             cusModel.setTheProduct(product);
-            cusModel.updateView();  // refresh image + label for selected product
+            cusModel.updateView();  // refresh image + label for selected product.
         }
     }
 

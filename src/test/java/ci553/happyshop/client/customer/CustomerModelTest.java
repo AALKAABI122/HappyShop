@@ -121,10 +121,10 @@ class CustomerModelTest {
 
     @Test
     void searchWithInput_usesNameSearchWhenIdNotFound() throws SQLException {
-        // Arrange
+        // Arrange.
         CustomerModel cm = new CustomerModel();
 
-        // Fake view to capture what the model sends to the UI
+        // Fake view to capture what the model sends to the UI.
         FakeCustomerView fakeView = new FakeCustomerView();
         cm.cusView = fakeView;
 
